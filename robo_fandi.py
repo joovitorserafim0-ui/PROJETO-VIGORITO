@@ -34,7 +34,7 @@ def inicializar_banco():
 def rodar_robo():
     inicializar_banco()
     
-    # Inicializa o navegador Chrome
+    # abre o navegador e maximiza a janela
     driver = webdriver.Chrome()
     driver.maximize_window()
     
@@ -279,7 +279,6 @@ def gerar_relatorio_pdf():
     plt.close()
     print("✅ PDF 'relatorio_estoque_organizado.pdf' gerado com as separações!")
 # ----------------------------------
-# Mude isto aqui:
+
 if __name__ == "__main__":
-    # Deixe vazio ou apenas com um pass
     pass
