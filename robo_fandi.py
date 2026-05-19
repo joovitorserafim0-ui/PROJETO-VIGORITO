@@ -39,8 +39,8 @@ def rodar_robo():
     driver.maximize_window()
     
     # Credenciais e URL
-    seu_usuario = "JOAO.SERAFIM@VIGORITO"
-    sua_senha = "Joao@0407"
+    seu_usuario = "USUARIO"
+    sua_senha = "SENHA"
     url_inicial = "https://vigorito.fandi.com.br/Modulos/Vendas/Operacao/MonitoracaoForm.aspx?m=B1EEC33C726A60554BC78518D5F9B32C&Cna_Codigo=16"
     
     try:
