@@ -9,7 +9,7 @@ from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import NoAlertPresentException
 
 # ==========================================
-# 1. CRIAÇÃO AUTOMÁTICA DA BASE DE DADOS
+# 1.  BASE DE DADOS
 # ==========================================
 def inicializar_banco():
     conn = sqlite3.connect('estoque_fandi.db')
@@ -29,7 +29,7 @@ def inicializar_banco():
     conn.close()
 
 # ==========================================
-# 2. PROCESSO PRINCIPAL DO ROBÔ
+# 2. PROCESSO PRINCIPAL 
 # ==========================================
 def rodar_robo():
     inicializar_banco()
@@ -48,26 +48,26 @@ def rodar_robo():
         print("Acessando o link do sistema Fandi Vigorito...")
         driver.get(url_inicial)
         
-        # 2. AGUARDA VOCÊ CLICAR NA TELA (NO BOTÃO VOLTAR PARA HOME)
-        print("\n📢 AGUARDANDO VOCÊ: Clique no botão 'Voltar para a Home' na tela...")
+        # 2. AGUARDA CLICAR NO BOTÃO VOLTAR PARA HOME
+        print("\n AGUARDANDO VOCÊ: Clique no botão 'Voltar para a Home' na tela...")
         
         driver.execute_script("window.clicado = false; window.addEventListener('click', () => { window.clicado = true; }, {once: true});")
         
         while True:
             foi_clicado = driver.execute_script("return window.clicado;")
             if foi_clicado:
-                print("🖱️ Primeiro clique detectado!")
+                print(" Primeiro clique detectado!")
                 break
             time.sleep(0.4)
             
-        # 3. CONTAGEM REGRESSIVA DE 7 SEGUNDOS
-        print("⏱️ Iniciando contagem de 7 segundos para a página de login carregar...")
+        # 3. CONTAGEM 7 SEGUNDOS
+        print("⏱ Iniciando contagem de 7 segundos para a página de login carregar...")
         for i in range(7, 0, -1):
             print(f"{i} segundos restantes...")
             time.sleep(1)
             
         # 4. PREENCHIMENTO AUTOMÁTICO DAS CREDENCIAIS E LOGIN
-        print("\n🤖 Preenchendo usuário e senha automaticamente...")
+        print("\ Preenchendo usuário e senha automaticamente...")
         try:
             WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="v-16"]'))).send_keys(seu_usuario)
             driver.find_element(By.XPATH, '//*[@id="v-17"]').send_keys(sua_senha)
@@ -80,14 +80,14 @@ def rodar_robo():
         print("Clicando no botão 'Entrar'...")
         driver.find_element(By.XPATH, '//*[@id="app"]/div/div/div/div/div/div[2]/div/div[4]/form/div/div[4]/button/span[3]').click()
         
-        # Espera fixa de 6 segundos após o login para garantir a renderização do menu
-        print("\n⏱️ Login efetuado. Aguardando 6 segundos para carregar o painel...")
+        # Espera de 6 segundos após o login 
+        print("\n⏱ Login efetuado. Aguardando 6 segundos para carregar o painel...")
         for i in range(6, 0, -1):
             print(f"{i} segundos restantes...")
             time.sleep(1)
         
-        # 5. NAVEGAÇÃO AUTOMÁTICA ATÉ A TELA INTERNA (CLIQUE AUTOMÁTICO VIA JAVASCRIPT)
-        print("🖱️ Clicando automaticamente no botão 'Consultar'...")
+        # 5. NAVEGAÇÃO AUTOMÁTICA ATÉ A TELA INTERNA 
+        print(" Clicando automaticamente no botão 'Consultar'...")
         btn_consultar = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Consultar')] | //span[contains(text(), 'Consultar')]"))
         )
@@ -95,7 +95,7 @@ def rodar_robo():
         
         time.sleep(2) # Pequena pausa para abrir o submenu
         
-        print("🖱️ Clicando automaticamente na opção 'Despachante'...")
+        print(" Clicando automaticamente na opção 'Despachante'...")
         btn_despachantes = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Despachante')] | //span[contains(text(), 'Despachante')]"))
         )
@@ -105,41 +105,41 @@ def rodar_robo():
         time.sleep(4)
         
         # ==========================================
-        # 📢 INTERVENÇÃO MANUAL DO JOÃO AQUI!
+        #  INTERVENÇÃO MANUAL 
         # ==========================================
-        print("\n=== 📢 AGUARDANDO SUA AÇÃO MANUAL ===")
+        print("\n===  AGUARDANDO SUA AÇÃO MANUAL ===")
         print("A navegação foi feita! Agora, apenas CLIQUE na barra cinza 'FILTROS RAPIDOS' para abrir o menu.")
         print("=======================================")
         
-        input("\n👉 ASSIM QUE A MINI ABA ESTIVER ABERTA NA TELA, VENHA AQUI NO TERMINAL E APERTE [ENTER]... ")
+        input("\n ASSIM QUE A MINI ABA ESTIVER ABERTA NA TELA, VENHA AQUI NO TERMINAL E APERTE [ENTER]... ")
         
-        print("\n🤖 Perfeito! Ajustando foco nos componentes internos do iframe...")
+        print("\n Perfeito! Ajustando foco nos componentes internos do iframe...")
         
-        # MÁGICA DO IFRAME
+        #  IFRAME
         try:
             driver.switch_to.default_content() 
             iframe_elemento = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.TAG_NAME, "iframe"))
             )
             driver.switch_to.frame(iframe_elemento)
-            print("🎯 Foco do robô movido com sucesso para dentro do Iframe!")
+            print(" Foco do robô movido com sucesso para dentro do Iframe!")
         except Exception:
-            print("⚠️ Nenhum iframe encontrado, continuando diretamente...")
+            print(" Nenhum iframe encontrado, continuando diretamente...")
         
         time.sleep(1)
         
-        # 6. FILTROS QUE VOCÊ PEDIU
+        # 6. FILTROS 
         filtros_para_processar = ["SAIDA PENDENTE", "CARTÓRIO", "GRAVAME"]
         
         for nome_filtro in filtros_para_processar:
-            print(f"\n🔄 Processando o Filtro: {nome_filtro}")
+            print(f"\n Processando o Filtro: {nome_filtro}")
             
-            # Localiza a caixinha de seleção (Select)
+            # Localiza a caixinha de seleção 
             select_element = WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.XPATH, '//*[@id="ctl00_ctl00_contentBase_content_ddlFiltros"]'))
             )
             
-            # 🚀 MÁGICA DO JAVASCRIPT: Seleciona o filtro pelo texto mesmo se ele estiver invisível/escondido na aba fechada
+            #  Seleciona o filtro pelo texto mesmo se ele estiver invisível/escondido na aba fechada
             script_selecao = """
                 var select = arguments[0];
                 var textoFiltro = arguments[1];
@@ -156,15 +156,15 @@ def rodar_robo():
             print(f"-> Filtro '{nome_filtro}' selecionado via Injeção de Comando.")
             time.sleep(1.5) 
             
-            # DEFESA ANTI POP-UP
+            #  ANTI POP-UP
             try:
                 alert = driver.switch_to.alert
-                print(f"💬 Pop-up do Fandi detectado: '{alert.text}'. Clicando em OK automaticamente...")
+                print(f" Pop-up do Fandi detectado: '{alert.text}'. Clicando em OK automaticamente...")
                 alert.accept() 
             except NoAlertPresentException:
                 pass
                 
-            print("⏱️ Aguardando 7 segundos para a tabela atualizar com o filtro...")
+            print("⏱ Aguardando 7 segundos para a tabela atualizar com o filtro...")
             time.sleep(7) 
             
             # 7. CAPTURA AUTOMÁTICA DA TABELA DE DADOS
@@ -198,22 +198,22 @@ def rodar_robo():
                     
                     # Exibição dos alertas no terminal
                     if dias_parado > 30:
-                        print(f"🚨 AVERBADO (+30 DIAS) -> Placa: {placa} | Parado há: {dias_parado} dias | Filtro: {nome_filtro} | Situação: {situacao}")
+                        print(f" AVERBADO (+30 DIAS) -> Placa: {placa} | Parado há: {dias_parado} dias | Filtro: {nome_filtro} | Situação: {situacao}")
                     elif dias_parado > 15:
-                        print(f"⚠️ ATENÇÃO (+15 DIAS) -> Placa: {placa} | Parado há: {dias_parado} dias | Filtro: {nome_filtro}")
+                        print(f" ATENÇÃO (+15 DIAS) -> Placa: {placa} | Parado há: {dias_parado} dias | Filtro: {nome_filtro}")
                         
                 except Exception:
                     continue
             
             conn.commit()
             conn.close()
-            print(f"✅ Filtro '{nome_filtro}' processado e atualizado.")
+            print(f" Filtro '{nome_filtro}' processado e atualizado.")
             
-        print("\n✨ Sucesso Absoluto! Sua base de dados foi montada e alimentada para os 3 filtros.")
+        print("\n Sucesso Absoluto! Sua base de dados foi montada e alimentada para os 3 filtros.")
 
     except Exception as erro_geral:
         import traceback
-        print(f"\n❌ Ocorreu um erro inesperado no fluxo do robô:")
+        print(f"\n Ocorreu um erro inesperado no fluxo do robô:")
         print(traceback.format_exc())
         
     finally:
@@ -228,7 +228,7 @@ except ImportError:
     import matplotlib.pyplot as plt
 
 def gerar_relatorio_pdf():
-    print("\n📄 Gerando relatório PDF inteligente...")
+    print("\n Gerando relatório PDF inteligente...")
     conn = sqlite3.connect('estoque_fandi.db')
     cursor = conn.cursor()
     # Pega todos os dados ordenados por filtro
@@ -260,13 +260,13 @@ def gerar_relatorio_pdf():
                 # Lógica de Alertas
                 status = "OK"
                 if dias >= 30:
-                    status = "🚨 AVERBADA (+30 DIAS)"
+                    status = " AVERBADA (+30 DIAS)"
                 elif dias >= 15:
-                    status = "⚠️ ATENÇÃO (+15 DIAS)"
+                    status = " ATENÇÃO (+15 DIAS)"
                 
                 # Verifica se entrou hoje
                 if d[2][:10] == hoje_str:
-                    status = "🆕 ADICIONADO HOJE"
+                    status = " ADICIONADO HOJE"
                 
                 texto += f"{placa:<12} | {dias:<6} | {status}\n"
         
@@ -277,7 +277,7 @@ def gerar_relatorio_pdf():
     ax.text(0.05, 0.95, texto, fontsize=9, fontfamily='monospace', va='top')
     plt.savefig("relatorio_estoque_organizado.pdf")
     plt.close()
-    print("✅ PDF 'relatorio_estoque_organizado.pdf' gerado com as separações!")
+    print(" PDF 'relatorio_estoque_organizado.pdf' gerado com as separações!")
 # ----------------------------------
 
 if __name__ == "__main__":
