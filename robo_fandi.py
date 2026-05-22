@@ -39,8 +39,8 @@ def rodar_robo():
     driver.maximize_window()
     
     # Credenciais e URL
-    seu_usuario = "USUARIO"
-    sua_senha = "SENHA"
+    seu_usuario = "JOAO.SERAFIM@VIGORITO"
+    sua_senha = "Joao@0407"
     url_inicial = "https://vigorito.fandi.com.br/Modulos/Vendas/Operacao/MonitoracaoForm.aspx?m=B1EEC33C726A60554BC78518D5F9B32C&Cna_Codigo=16"
     
     try:
@@ -175,6 +175,8 @@ def rodar_robo():
             cursor = conn.cursor()
             hoje = datetime.now().strftime("%d/%m/%Y %H:%M")
             
+            placas_encontradas_nesta_execucao = []
+            
             for i_linha in linhas_dados:
                 try:
                     placa = i_linha.find_element(By.XPATH, "./td[11]").text.strip()
@@ -184,6 +186,8 @@ def rodar_robo():
                     
                     if not placa or len(placa) < 5: 
                         continue
+                    
+                    placas_encontradas_nesta_execucao.append(placa)
                     
                     # Trata a data de entrada para calcular os dias parado
                     data_base_str = dt_entrada[:10]
@@ -205,9 +209,16 @@ def rodar_robo():
                 except Exception:
                     continue
             
+            # --- LIMPEZA DE PLACAS QUE NÃO ESTÃO MAIS NESTE FILTRO ---
+            if placas_encontradas_nesta_execucao:
+                placeholders = ', '.join(['?'] * len(placas_encontradas_nesta_execucao))
+                cursor.execute(f"DELETE FROM veiculos WHERE filtro_origem = ? AND placa NOT IN ({placeholders})", [nome_filtro] + placas_encontradas_nesta_execucao)
+            else:
+                cursor.execute("DELETE FROM veiculos WHERE filtro_origem = ?", (nome_filtro,))
+            
             conn.commit()
             conn.close()
-            print(f" Filtro '{nome_filtro}' processado e atualizado.")
+            print(f" Filtro '{nome_filtro}' processado e atualizado (placas antigas removidas).")
             
         print("\n Sucesso Absoluto! Sua base de dados foi montada e alimentada para os 3 filtros.")
 
@@ -281,4 +292,5 @@ def gerar_relatorio_pdf():
 # ----------------------------------
 
 if __name__ == "__main__":
-    pass
+    rodar_robo()
+    gerar_relatorio_pdf()
