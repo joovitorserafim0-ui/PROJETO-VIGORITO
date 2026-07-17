@@ -1,0 +1,5 @@
+Placa: FVW0559 | Motivo: FORA DO ESTADO
+Placa: UGA8C55 | Motivo: OKM EMPLACADO
+Placa: FIQ2C53 | Motivo: TRANSF. GLOBEL
+Placa: UDP1H96 | Motivo: TRANSF. GLOBEL
+Placa: EBT8C91 | Motivo: BANCO PAGAR

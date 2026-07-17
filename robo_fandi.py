@@ -1,15 +1,35 @@
+import subprocess
+import sys
+import os
+
+# ==========================================
+# 0. INSTALAÇÃO AUTOMÁTICA DE BIBLIOTECAS
+# ==========================================
+def instalar_bibliotecas():
+    libs = ['selenium', 'fpdf']
+    for lib in libs:
+        try:
+            __import__(lib)
+        except ImportError:
+            print(f"Instalando {lib}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", lib])
+
+instalar_bibliotecas()
+
 import time
 import sqlite3
+import smtplib
+from email.message import EmailMessage
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import NoAlertPresentException
+from fpdf import FPDF
 
 # ==========================================
-# 1.  BASE DE DADOS
+# 1. BASE DE DADOS
 # ==========================================
 def inicializar_banco():
     conn = sqlite3.connect('estoque_fandi.db')
@@ -25,272 +45,206 @@ def inicializar_banco():
             ultima_atualizacao TEXT
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS motivos_parada (
+            placa TEXT PRIMARY KEY,
+            motivo TEXT,
+            data_registro TEXT
+        )
+    ''')
     conn.commit()
     conn.close()
 
 # ==========================================
-# 2. PROCESSO PRINCIPAL 
+# 2. PROCESSO PRINCIPAL
 # ==========================================
 def rodar_robo():
     inicializar_banco()
-    
-    # abre o navegador e maximiza a janela
     driver = webdriver.Chrome()
     driver.maximize_window()
-    
-    # Credenciais e URL
-    seu_usuario = "SEU USUARIO"
-    sua_senha = "SENHA"
+    seu_usuario = "JOAO.SERAFIM@VIGORITO"
+    sua_senha = "Joao@0407"
     url_inicial = "https://vigorito.fandi.com.br/Modulos/Vendas/Operacao/MonitoracaoForm.aspx?m=B1EEC33C726A60554BC78518D5F9B32C&Cna_Codigo=16"
     
     try:
-        # 1. Acessa o link de erro/bloqueio inicial do Fandi
-        print("Acessando o link do sistema Fandi Vigorito...")
         driver.get(url_inicial)
-        
-        # 2. AGUARDA CLICAR NO BOTÃO VOLTAR PARA HOME
-        print("\n AGUARDANDO VOCÊ: Clique no botão 'Voltar para a Home' na tela...")
-        
         driver.execute_script("window.clicado = false; window.addEventListener('click', () => { window.clicado = true; }, {once: true});")
-        
         while True:
-            foi_clicado = driver.execute_script("return window.clicado;")
-            if foi_clicado:
-                print(" Primeiro clique detectado!")
-                break
+            if driver.execute_script("return window.clicado;"): break
             time.sleep(0.4)
-            
-        # 3. CONTAGEM 7 SEGUNDOS
-        print("⏱ Iniciando contagem de 7 segundos para a página de login carregar...")
-        for i in range(7, 0, -1):
-            print(f"{i} segundos restantes...")
-            time.sleep(1)
-            
-        # 4. PREENCHIMENTO AUTOMÁTICO DAS CREDENCIAIS E LOGIN
-        print("\ Preenchendo usuário e senha automaticamente...")
+        time.sleep(7)
+        
+        # --- ETAPA 1: PREENCHER USUÁRIO E CLICAR EM PRÓXIMO ---
         try:
-            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="v-16"]'))).send_keys(seu_usuario)
-            driver.find_element(By.XPATH, '//*[@id="v-17"]').send_keys(sua_senha)
-        except Exception:
-            inputs = driver.find_elements(By.TAG_NAME, "input")
-            if len(inputs) >= 2:
-                inputs[0].send_keys(seu_usuario)
-                inputs[1].send_keys(sua_senha)
-                
-        print("Clicando no botão 'Entrar'...")
-        driver.find_element(By.XPATH, '//*[@id="app"]/div/div/div/div/div/div[2]/div/div[4]/form/div/div[4]/button/span[3]').click()
+            wait = WebDriverWait(driver, 15)
+            campo_user = wait.until(EC.presence_of_element_located((By.XPATH, '/html/body/div[1]/div/div/div/div/div/div[2]/div[1]/div[4]/form/div/div[1]/div/div/div[1]/div/div[3]/input')))
+            campo_user.send_keys(seu_usuario)
+            driver.find_element(By.XPATH, '/html/body/div[1]/div/div/div/div/div/div[2]/div[1]/div[4]/form/div/div[2]/button').click()
+            time.sleep(4)
+        except Exception as e:
+            print("Erro na etapa 1: ", e)
+
+        # --- ETAPA 2: PREENCHER SENHA E CLICAR EM ENTRAR ---
+        try:
+            # Aguarda e preenche a senha com o seu XPath específico
+            campo_senha = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '/html/body/div[1]/div/div/div/div/div/div[2]/div[1]/div[4]/form/div/div[2]/div/div/div[1]/div/div[3]/input')))
+            campo_senha.send_keys(sua_senha)
+            # Clica no botão de entrar
+            driver.find_element(By.XPATH, '//*[@id="app"]/div/div/div/div/div/div[2]/div/div[4]/form/div/div[4]/button/span[3]').click()
+        except Exception as e:
+            print("Erro na etapa 2: ", e)
         
-        # Espera de 6 segundos após o login 
-        print("\n⏱ Login efetuado. Aguardando 6 segundos para carregar o painel...")
-        for i in range(6, 0, -1):
-            print(f"{i} segundos restantes...")
-            time.sleep(1)
-        
-        # 5. NAVEGAÇÃO AUTOMÁTICA ATÉ A TELA INTERNA 
-        print(" Clicando automaticamente no botão 'Consultar'...")
-        btn_consultar = WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Consultar')] | //span[contains(text(), 'Consultar')]"))
-        )
+        time.sleep(6)
+        btn_consultar = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Consultar')] | //span[contains(text(), 'Consultar')]")))
         driver.execute_script("arguments[0].click();", btn_consultar)
-        
-        time.sleep(2) # Pequena pausa para abrir o submenu
-        
-        print(" Clicando automaticamente na opção 'Despachante'...")
-        btn_despachantes = WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Despachante')] | //span[contains(text(), 'Despachante')]"))
-        )
+        time.sleep(2) 
+        btn_despachantes = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Despachante')] | //span[contains(text(), 'Despachante')]")))
         driver.execute_script("arguments[0].click();", btn_despachantes)
-        
-        # Espera para a página carregar por completo o painel de filtros
         time.sleep(4)
-        
-        # ==========================================
-        #  INTERVENÇÃO MANUAL 
-        # ==========================================
-        print("\n===  AGUARDANDO SUA AÇÃO MANUAL ===")
-        print("A navegação foi feita! Agora, apenas CLIQUE na barra cinza 'FILTROS RAPIDOS' para abrir o menu.")
-        print("=======================================")
-        
-        input("\n ASSIM QUE A MINI ABA ESTIVER ABERTA NA TELA, VENHA AQUI NO TERMINAL E APERTE [ENTER]... ")
-        
-        print("\n Perfeito! Ajustando foco nos componentes internos do iframe...")
-        
-        #  IFRAME
+        input("\n AGUARDANDO AÇÃO MANUAL... APERTE [ENTER] NO TERMINAL AO ABRIR FILTROS: ")
         try:
             driver.switch_to.default_content() 
-            iframe_elemento = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, "iframe"))
-            )
+            iframe_elemento = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "iframe")))
             driver.switch_to.frame(iframe_elemento)
-            print(" Foco do robô movido com sucesso para dentro do Iframe!")
-        except Exception:
-            print(" Nenhum iframe encontrado, continuando diretamente...")
-        
+        except: pass
         time.sleep(1)
-        
-        # 6. FILTROS 
-        filtros_para_processar = ["SAIDA PENDENTE", "CARTÓRIO", "GRAVAME"]
-        
+        filtros_para_processar = ["SAIDA PENDENTE", "CARTÓRIO", "GRAVAME", "FECHAMENTO", "S DESPACHANTE"]
         for nome_filtro in filtros_para_processar:
-            print(f"\n Processando o Filtro: {nome_filtro}")
-            
-            # Localiza a caixinha de seleção 
-            select_element = WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="ctl00_ctl00_contentBase_content_ddlFiltros"]'))
-            )
-            
-            #  Seleciona o filtro pelo texto mesmo se ele estiver invisível/escondido na aba fechada
-            script_selecao = """
-                var select = arguments[0];
-                var textoFiltro = arguments[1];
-                for (var i = 0; i < select.options.length; i++) {
-                    if (select.options[i].text === textoFiltro) {
-                        select.selectedIndex = i;
-                        var event = new Event('change', { bubbles: true });
-                        select.dispatchEvent(event);
-                        break;
-                    }
-                }
-            """
-            driver.execute_script(script_selecao, select_element, nome_filtro)
-            print(f"-> Filtro '{nome_filtro}' selecionado via Injeção de Comando.")
-            time.sleep(1.5) 
-            
-            #  ANTI POP-UP
-            try:
-                alert = driver.switch_to.alert
-                print(f" Pop-up do Fandi detectado: '{alert.text}'. Clicando em OK automaticamente...")
-                alert.accept() 
-            except NoAlertPresentException:
-                pass
-                
-            print("⏱ Aguardando 7 segundos para a tabela atualizar com o filtro...")
-            time.sleep(7) 
-            
-            # 7. CAPTURA AUTOMÁTICA DA TABELA DE DADOS
-            print("-> Capturando dados do grid de veículos...")
+            select_element = WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.XPATH, '//*[@id="ctl00_ctl00_contentBase_content_ddlFiltros"]')))
+            driver.execute_script("arguments[0].selectedIndex = Array.from(arguments[0].options).findIndex(o => o.text === arguments[1]); arguments[0].dispatchEvent(new Event('change'));", select_element, nome_filtro)
+            time.sleep(8) 
             linhas_dados = driver.find_elements(By.CSS_SELECTOR, "#ctl00_ctl00_contentBase_content_grdMonitoracao tbody tr")
-            
-            conn = sqlite3.connect('estoque_fandi.db')
-            cursor = conn.cursor()
-            hoje = datetime.now().strftime("%d/%m/%Y %H:%M")
-            
-            placas_encontradas_nesta_execucao = []
-            
+            conn = sqlite3.connect('estoque_fandi.db'); cursor = conn.cursor()
+            hoje = datetime.now().strftime("%d/%m/%Y %H:%M"); placas_novas = []
             for i_linha in linhas_dados:
                 try:
                     placa = i_linha.find_element(By.XPATH, "./td[11]").text.strip()
+                    if not placa or len(placa) < 5: continue
+                    placas_novas.append(placa)
                     dt_entrada = i_linha.find_element(By.XPATH, "./td[5]").text.strip()
                     dt_alteracao = i_linha.find_element(By.XPATH, "./td[17]").text.strip()
-                    situacao = i_linha.find_element(By.XPATH, "./td[18]").text.strip()
-                    
-                    if not placa or len(placa) < 5: 
-                        continue
-                    
-                    placas_encontradas_nesta_execucao.append(placa)
-                    
-                    # Trata a data de entrada para calcular os dias parado
-                    data_base_str = dt_entrada[:10]
-                    data_base = datetime.strptime(data_base_str, "%d/%m/%Y")
-                    dias_parado = (datetime.now() - data_base).days
-                    
-                    # Salva ou Atualiza na base SQLite
-                    cursor.execute('''
-                        INSERT OR REPLACE INTO veiculos (placa, filtro_origem, dt_entrada, dt_alteracao, situacao, dias_parado, ultima_atualizacao)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (placa, nome_filtro, dt_entrada, dt_alteracao, situacao, dias_parado, hoje))
-                    
-                    # Exibição dos alertas no terminal
-                    if dias_parado > 30:
-                        print(f" AVERBADO (+30 DIAS) -> Placa: {placa} | Parado há: {dias_parado} dias | Filtro: {nome_filtro} | Situação: {situacao}")
-                    elif dias_parado > 15:
-                        print(f" ATENÇÃO (+15 DIAS) -> Placa: {placa} | Parado há: {dias_parado} dias | Filtro: {nome_filtro}")
-                        
-                except Exception:
-                    continue
-            
-            # --- LIMPEZA DE PLACAS QUE NÃO ESTÃO MAIS NESTE FILTRO ---
-            if placas_encontradas_nesta_execucao:
-                placeholders = ', '.join(['?'] * len(placas_encontradas_nesta_execucao))
-                cursor.execute(f"DELETE FROM veiculos WHERE filtro_origem = ? AND placa NOT IN ({placeholders})", [nome_filtro] + placas_encontradas_nesta_execucao)
-            else:
-                cursor.execute("DELETE FROM veiculos WHERE filtro_origem = ?", (nome_filtro,))
-            
-            conn.commit()
-            conn.close()
-            print(f" Filtro '{nome_filtro}' processado e atualizado (placas antigas removidas).")
-            
-        print("\n Sucesso Absoluto! Sua base de dados foi montada e alimentada para os 3 filtros.")
+                    dias_parado = (datetime.now() - datetime.strptime(dt_entrada[:10], "%d/%m/%Y")).days
+                    cursor.execute("INSERT OR REPLACE INTO veiculos VALUES (?,?,?,?,?,?,?)", (placa, nome_filtro, dt_entrada, dt_alteracao, i_linha.find_element(By.XPATH, "./td[18]").text.strip(), dias_parado, hoje))
+                except: continue
+            cursor.execute(f"DELETE FROM veiculos WHERE filtro_origem = ? AND placa NOT IN ({','.join(['?']*len(placas_novas))})", [nome_filtro] + placas_novas)
+            conn.commit(); conn.close()
+    except Exception as e: print(e)
+    finally: driver.quit()
 
-    except Exception as erro_geral:
-        import traceback
-        print(f"\n Ocorreu um erro inesperado no fluxo do robô:")
-        print(traceback.format_exc())
-        
-    finally:
-        pass
-# --- ADIÇÃO PARA RELATÓRIO PDF ---
-try:
-    import matplotlib.pyplot as plt
-except ImportError:
-    import subprocess
-    import sys
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "matplotlib"])
-    import matplotlib.pyplot as plt
-
+# ==========================================
+# 3. RELATÓRIO PDF
+# ==========================================
 def gerar_relatorio_pdf():
-    print("\n Gerando relatório PDF inteligente...")
+    print("\n Gerando relatório personalizado Vigorito Chevrolet...")
     conn = sqlite3.connect('estoque_fandi.db')
     cursor = conn.cursor()
-    # Pega todos os dados ordenados por filtro
-    cursor.execute("SELECT placa, filtro_origem, dt_entrada, situacao, dias_parado FROM veiculos ORDER BY filtro_origem, dias_parado DESC")
+    cursor.execute("SELECT placa, filtro_origem, dt_entrada, situacao, dias_parado, dt_alteracao FROM veiculos")
     dados = cursor.fetchall()
+    cursor.execute("SELECT placa, motivo FROM motivos_parada")
+    motivos_db = {row[0].upper(): row[1] for row in cursor.fetchall()}
     conn.close()
 
-    fig, ax = plt.subplots(figsize=(8.27, 11.69))
-    ax.axis('off')
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
     
-    hoje_str = datetime.now().strftime("%d/%m/%Y")
-    texto = f"RELATÓRIO GERENCIAL - ESTOQUE FANDI\nData: {datetime.now().strftime('%d/%m/%Y %H:%M')}\n"
-    texto += "="*75 + "\n\n"
+    # --- PERSONALIZAÇÃO VIGORITO ---
+    try:
+        pdf.image('logo_vigorito.png', 10, 8, 40)
+    except:
+        pass 
+    
+    pdf.set_fill_color(0, 51, 102) # Azul Vigorito
+    pdf.rect(0, 0, 210, 30, 'F')
+    
+    pdf.set_text_color(255, 255, 255) # Texto Branco no cabeçalho
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, f"RELATORIO GERENCIAL - VIGORITO CHEVROLET", ln=True, align='C')
+    pdf.set_font("Arial", size=10)
+    pdf.cell(0, 10, f"Data: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align='C')
+    pdf.ln(10)
+    
+    # Identificação do usuário e supervisora
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(0, 5, f"Funcionario: Joao Vitor Serafim da Silva", ln=True)
+    pdf.cell(0, 5, f"Supervisora: Augusta Souza", ln=True)
+    pdf.cell(0, 5, f"Processo: Saida", ln=True)
+    pdf.ln(5)
+    # --------------------------------
 
-    # Agrupa e processa por filtros
-    filtros = ["SAIDA PENDENTE", "CARTÓRIO", "GRAVAME"]
-    
+    # Filtros padrão
+    filtros = ["SAIDA PENDENTE", "CARTÓRIO", "GRAVAME", "FECHAMENTO"]
     for f in filtros:
-        texto += f"FILTRO: {f.upper()}\n"
-        texto += f"{'PLACA':<12} | {'DIAS':<6} | {'STATUS ALERTA'}\n"
-        texto += "-"*50 + "\n"
+        dados_filtro = [d for d in dados if d[1] == f]
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, f"FILTRO: {f} (Qtd: {len(dados_filtro)})", ln=True)
+        pdf.set_font("Arial", size=10)
         
-        encontrou = False
-        for d in dados:
-            if d[1] == f:
-                encontrou = True
-                placa, dias, situacao = d[0], d[4], d[3]
-                
-                # Lógica de Alertas
-                status = "OK"
-                if dias >= 30:
-                    status = " AVERBADA (+30 DIAS)"
-                elif dias >= 15:
-                    status = " ATENÇÃO (+15 DIAS)"
-                
-                # Verifica se entrou hoje
-                if d[2][:10] == hoje_str:
-                    status = " ADICIONADO HOJE"
-                
-                texto += f"{placa:<12} | {dias:<6} | {status}\n"
+        pdf.set_fill_color(0, 51, 102)
+        pdf.set_text_color(255, 255, 255)
+        pdf.cell(30, 7, "PLACA", 1, 0, 'C', True)
+        pdf.cell(20, 7, "DIAS", 1, 0, 'C', True)
+        pdf.cell(40, 7, "STATUS", 1, 0, 'C', True)
+        pdf.cell(100, 7, "MOTIVO", 1, 1, 'C', True)
         
-        if not encontrou:
-            texto += "Nenhum veículo encontrado.\n"
-        texto += "\n"
+        pdf.set_text_color(0, 0, 0) 
+        
+        dados_ordenados = sorted(dados_filtro, key=lambda x: int(x[0][-1]) if x[0][-1].isdigit() else 99)
+        
+        for d in dados_ordenados:
+            placa, dias, situacao = d[0], d[4], d[3]
+            status = "OK"
+            if dias >= 30: status = "AVERBADA(+30)"
+            elif dias >= 15: status = "ATENCAO(+15)"
+            motivo = "PEND. OK FINANCEIRO" if f == "FECHAMENTO" else motivos_db.get(placa.upper(), "NENHUM")
+            
+            pdf.cell(30, 7, f"{placa}", 1)
+            pdf.cell(20, 7, f"{dias}", 1)
+            pdf.cell(40, 7, f"{status}", 1)
+            pdf.cell(100, 7, f"{motivo}", 1, 1)
+        pdf.ln(5)
 
-    ax.text(0.05, 0.95, texto, fontsize=9, fontfamily='monospace', va='top')
-    plt.savefig("relatorio_estoque_organizado.pdf")
-    plt.close()
-    print(" PDF 'relatorio_estoque_organizado.pdf' gerado com as separações!")
-# ----------------------------------
+    # --- NOVA FUNÇÃO: PLACAS FINALIZADAS (DT. ALTERAÇÃO = HOJE + S DESPACHANTE) ---
+    hoje_str = datetime.now().strftime("%d/%m/%Y")
+    # d[1] é filtro_origem, d[5] é dt_alteracao (index 5 no SELECT)
+    placas_finalizadas = [d for d in dados if d[1] == "S DESPACHANTE" and d[5].startswith(hoje_str)]
+    
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, f"PLACAS FINALIZADAS HOJE ({hoje_str}) - (Qtd: {len(placas_finalizadas)})", ln=True)
+    pdf.set_font("Arial", size=10)
+    pdf.set_fill_color(0, 150, 0) # Verde
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(30, 7, "PLACA", 1, 0, 'C', True)
+    pdf.cell(160, 7, "DATA DE ALTERAÇÃO", 1, 1, 'C', True)
+    pdf.set_text_color(0, 0, 0)
+    
+    for d in placas_finalizadas:
+        pdf.cell(30, 7, f"{d[0]}", 1)
+        pdf.cell(160, 7, f"{d[5]}", 1, 1)
+    
+    pdf.output("relatorio_estoque_organizado.pdf")
+    print(" PDF 'relatorio_estoque_organizado.pdf' gerado com sucesso!")
+
+# ==========================================
+# 4. ENVIO DE EMAIL
+# ==========================================
+def enviar_email():
+    msg = EmailMessage()
+    msg['Subject'] = f"Relatório Diário de Estoque Fandi - {datetime.now().strftime('%d/%m/%Y')}"
+    msg['From'] = "joovitorserafim0@gmail.com"
+    msg['To'] = "augusta.souza@vigorito.com.br"
+    msg.set_content("Segue em anexo o relatório diário.")
+    with open("relatorio_estoque_organizado.pdf", "rb") as f:
+        msg.add_attachment(f.read(), maintype="application", subtype="pdf", filename="relatorio.pdf")
+    
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login("joovitorserafim0@gmail.com", "quywhbjkwbyrdeds")
+        smtp.send_message(msg)
+    print("Email enviado com sucesso!")
 
 if __name__ == "__main__":
     rodar_robo()
     gerar_relatorio_pdf()
+    if input("\n Enviar relatório por e-mail para augusta.souza@vigorito.com.br? (s/n): ").lower() == 's':
+        enviar_email()

@@ -1,46 +1,62 @@
-import customtkinter as ctk
-import threading
-import sys
-import os
+import tkinter as tk
+from tkinter import messagebox
+import sqlite3
+from datetime import datetime
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-import robo_fandi 
-
-class AppRobo(ctk.CTk):
+class JanelaMotivo(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Sistema Fandi Vigorito")
+        # Mantenha aqui todas as suas configurações de interface originais
+        self.title("Sistema de Motivos Fandi")
         self.geometry("400x300")
-
         
-        self.label = ctk.CTkLabel(self, text="Gerenciador de Estoque", font=("Arial", 20))
-        self.label.pack(pady=20)
-
-        self.btn_iniciar = ctk.CTkButton(self, text="Iniciar Robô e Gerar PDF", command=self.iniciar_processo)
-        self.btn_iniciar.pack(pady=20)
-
-        self.status_label = ctk.CTkLabel(self, text="Status: Aguardando...", text_color="gray")
-        self.status_label.pack(pady=20)
-
-    def iniciar_processo(self):
-        self.status_label.configure(text="Status: Executando...", text_color="yellow")
+        # Exemplo de campos (ajuste conforme os seus originais)
+        tk.Label(self, text="PLACA DO VEÍCULO:").pack(pady=5)
+        self.entry_placa = tk.Entry(self)
+        self.entry_placa.pack()
         
-        threading.Thread(target=self.rodar_tarefa, daemon=True).start()
+        tk.Label(self, text="MOTIVO DA PARADA:").pack(pady=5)
+        self.entry_motivo = tk.Entry(self, width=40)
+        self.entry_motivo.pack()
+        
+        # Botão de salvar - MANTENHA A CHAMADA DA FUNÇÃO
+        self.btn_salvar = tk.Button(self, text="SALVAR NO RELATÓRIO", command=self.salvar_dados)
+        self.btn_salvar.pack(pady=20)
 
-    def rodar_tarefa(self):
+    def salvar_dados(self):
+        # Captura os dados da interface
+        placa = self.entry_placa.get().strip().upper()
+        motivo = self.entry_motivo.get().strip()
+        
+        if not placa or not motivo:
+            messagebox.showwarning("Atenção", "Preencha a Placa e o Motivo!")
+            return
+            
         try:
-          
-            robo_fandi.rodar_robo()
-           
-            robo_fandi.gerar_relatorio_pdf()
+            # CONEXÃO COM O BANCO DO ROBÔ (O mesmo arquivo!)
+            # Certifique-se de que o caminho do banco é o mesmo que está no robo_fandi.py
+            conn = sqlite3.connect('estoque_fandi.db')
+            cursor = conn.cursor()
             
+            # Atualiza ou insere o motivo
+            cursor.execute('''
+                INSERT OR REPLACE INTO motivos_parada (placa, motivo, data_registro)
+                VALUES (?, ?, ?)
+            ''', (placa, motivo, datetime.now().strftime("%d/%m/%Y")))
             
-            self.status_label.configure(text="Status: Concluído com sucesso!", text_color="green")
+            conn.commit()
+            conn.close()
+            
+            messagebox.showinfo("Sucesso", f"Motivo da placa {placa} registrado com sucesso!")
+            self.entry_placa.delete(0, tk.END)
+            self.entry_motivo.delete(0, tk.END)
+            
         except Exception as e:
-            self.status_label.configure(text=f"Status: Erro na execução", text_color="red")
-            print(f"Erro encontrado: {e}")
+            messagebox.showerror("Erro", f"Não foi possível salvar: {e}")
+
+# Aqui você mantém todos os outros métodos que sua interface possa ter
+# (Não delete as outras funções que você tinha!)
 
 if __name__ == "__main__":
-    app = AppRobo()
+    app = JanelaMotivo()
     app.mainloop()
